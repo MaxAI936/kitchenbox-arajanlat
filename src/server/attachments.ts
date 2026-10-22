@@ -47,7 +47,7 @@ export async function attachmentResponse(
       headers: { "Cache-Control": "no-store" },
     });
   if (
-    request.method !== "GET" ||
+    !["GET", "HEAD"].includes(request.method) ||
     !id ||
     !/^\d{10}$/.test(expires) ||
     !/^[a-f0-9]{64}$/.test(sig)
@@ -84,7 +84,7 @@ export async function attachmentResponse(
     bytes.length > 25 * 1024 * 1024
   )
     throw new Error("Érvénytelen PDF tartalom.");
-  return new Response(bytes, {
+  return new Response(request.method === "HEAD" ? null : bytes, {
     headers: {
       "Content-Type": "application/pdf",
       "Content-Disposition": `attachment; filename="${id}.pdf"`,

@@ -18,6 +18,12 @@ export function canonical(value: any): string {
 }
 export async function fingerprint(contact: Contact, config: Pricing) {
   const { roadRetrievedAt, routeIssue, ...semantic } = contact;
+  semantic.fields = Object.fromEntries(
+    Object.entries(contact.fields).map(([key, value]) => [
+      key,
+      Array.isArray(value) ? [...value].sort() : value,
+    ]),
+  );
   const buf = await crypto.subtle.digest(
     "SHA-256",
     new TextEncoder().encode(canonical({ contact: semantic, config })),

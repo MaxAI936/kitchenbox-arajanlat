@@ -13,6 +13,16 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.unstubAllEnvs();
 });
+it("a PDF-metaadatok HEAD kéréssel is elérhetők érvényes aláírás esetén", async () => {
+  const { q, store } = await setup();
+  const r = await attachmentResponse(
+    new Request(await createAttachmentUrl(q.id), { method: "HEAD" }),
+    store,
+  );
+  expect(r.status).toBe(200);
+  expect(r.headers.get("Content-Length")).toBeTruthy();
+  expect(await r.text()).toBe("");
+});
 async function setup() {
   vi.stubEnv("PDF_SIGNING_SECRET", "test-secret-".repeat(4));
   vi.stubEnv("PUBLIC_URL", "https://quotes.example.com");

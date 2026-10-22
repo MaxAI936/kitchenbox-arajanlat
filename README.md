@@ -80,7 +80,7 @@ Ezután az eredeti Vibe history megtartásával kell a változásokat a kapcsolt
 
 ## Ellenőrzés és források
 
-30 teszt: kalkuláció és kerekítés, hiányzó extrák, ismeretlen értékek, nettó/bruttó, routing-hibák, többszörös/párhuzamos események és küldések, megváltozott címzett, DND, konfigurálatlan backend, webhook hitelesítés, többoldalas ékezetes PDF, mockolt GHL Email kérés és aláírt attachment hitelesítés/lejárat/fájlnév. A külső API-kat a tesztek mockolják; valós GHL-írás, routing-lekérdezés és email küldés nem történt. `npm audit`: 0 ismert sérülékenység a jelen lockfile-ban. A forrás template elavult TanStack/Vite verzióit javított kompatibilis verziókra frissítettük.
+32 teszt: kalkuláció és kerekítés, hiányzó extrák, ismeretlen értékek, nettó/bruttó, routing-hibák, többszörös/párhuzamos események és küldések, megváltozott címzett, DND, konfigurálatlan backend, webhook hitelesítés, többoldalas ékezetes PDF, mockolt GHL Email kérés és aláírt attachment hitelesítés/lejárat/fájlnév/HEAD-metaadatok, az extraopciók sorrendjétől független duplikációvédelem. A külső API-kat a tesztek mockolják; valós GHL-írás, routing-lekérdezés és email küldés nem történt. `npm audit`: 0 ismert sérülékenység a jelen lockfile-ban. A forrás template elavult TanStack/Vite verzióit javított kompatibilis verziókra frissítettük.
 
 - https://help.gohighlevel.com/support/solutions/articles/155000009214-how-to-use-git-sync-in-ai-studio
 - https://help.gohighlevel.com/support/solutions/articles/155000008701

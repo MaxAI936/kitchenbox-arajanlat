@@ -2,6 +2,13 @@ import { it, expect, vi } from "vitest";
 import { fixture } from "./fixtures";
 import { MemoryStore } from "../src/server/store";
 import { Workflow } from "../src/server/workflow";
+it("az extraopciók sorrendje nem eredményez új ajánlatot", async () => {
+  const t = setup();
+  const a = await t.flow.process(t.contact, t.config);
+  t.contact.fields["contact.bepthet_extrk"] = ["Hangszórók", "TV"];
+  const b = await t.flow.process(t.contact, t.config);
+  expect(a.id).toBe(b.id);
+});
 it("aktív DND esetén nem küld levelet", async () => {
   const t = setup();
   t.contact.dnd = true;
