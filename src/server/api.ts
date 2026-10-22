@@ -10,6 +10,7 @@ import { createQuotePdf } from "./pdf";
 import { sendEmail } from "./email";
 import { withRoadDistance } from "./routing";
 import { demoContact } from "../lib/demo";
+import { attachmentResponse } from "./attachments";
 const json = (data: unknown, status = 200) =>
   Response.json(data, {
     status,
@@ -60,6 +61,8 @@ export async function handle(request: Request): Promise<Response> {
   try {
     const path = new URL(request.url).pathname.replace(/^\/api\//, "");
     const settings = configured();
+    if (path.startsWith("attachments/"))
+      return attachmentResponse(request, new SupabaseStore());
     if (path === "health")
       return json({
         service: "Kitchenbox",

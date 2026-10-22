@@ -726,7 +726,7 @@ function App() {
                   },
                   {
                     name: "Email küldés",
-                    text: "Resend · ellenőrzött feladói domain, PDF-melléklet. A küldés külön kapcsolóval engedélyezhető.",
+                    text: "GHL Conversations · a CRM-fiókban csatlakoztatott feladói domain, aláírt PDF-melléklet. A küldés külön kapcsolóval engedélyezhető.",
                     key: "email",
                     tag: "EMAIL",
                   },

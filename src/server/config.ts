@@ -50,7 +50,11 @@ export const configured = () => ({
   routing: !!env("GOOGLE_MAPS_API_KEY"),
   database: !!env("SUPABASE_URL") && !!env("SUPABASE_SERVICE_ROLE_KEY"),
   email:
-    !!env("RESEND_API_KEY") &&
+    (env("EMAIL_PROVIDER") === "resend"
+      ? !!env("RESEND_API_KEY")
+      : !!env("GHL_TOKEN") &&
+        env("PDF_SIGNING_SECRET").length >= 32 &&
+        env("PUBLIC_URL").startsWith("https://")) &&
     !!env("EMAIL_FROM") &&
     env("EMAIL_DOMAIN_VERIFIED") === "true",
   sending: env("SEND_EMAIL_ENABLED") === "true",

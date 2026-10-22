@@ -1,6 +1,6 @@
 # Kitchenbox árajánlatkezelő
 
-Magyar adminfelület, a Kitchen Box GHL kontaktmezőire épített kalkuláció, PDF és később aktiválható automatikus email. TanStack Start + React, szerveroldali REST végpontok, Supabase PostgreSQL, Google Routes, Resend.
+Magyar adminfelület, a Kitchen Box GHL kontaktmezőire épített kalkuláció, PDF és később aktiválható automatikus email. TanStack Start + React, szerveroldali REST végpontok, Supabase PostgreSQL, Google Routes és GHL Conversations email (opcionálisan Resend).
 
 ## Indítás
 
@@ -36,11 +36,11 @@ A Node host a `dist/client` statikus fájljait és a `dist/server` SSR alkalmaz�
 
 1. Hozz létre Supabase projektet, és futtasd a `migrations/001_kitchenbox.sql` migrációt. A táblák RLS-védettek, a böngésző nem kap hozzáférést. A szerver service role kulcsot használ.
 2. Másold `.env.example` tartalmát `.env` fájlba helyi futtatáshoz, vagy add meg ezeket a host Secrets felületén. Titkot tilos `VITE_` változóba vagy Gitbe tenni. Az app nem tudja felhasználni a Codex connector hitelesítését saját futtatókörnyezetében.
-3. `GHL_TOKEN`: Kitchen Box sub-account privát integrációs token, legalább `contacts.readonly`, `contacts.write`, `locations/customFields.readonly` scope-okkal. A GHL kontakt duplikációs prioritásait az upsert tiszteletben tartja.
+3. `GHL_TOKEN`: Kitchen Box sub-account privát integrációs token, legalább `contacts.readonly`, `contacts.write`, `locations/customFields.readonly` és az emailhez `conversations/message.write` scope-okkal. A GHL kontakt duplikációs prioritásait az upsert tiszteletben tartja.
 4. `ADMIN_TOKEN` és `WEBHOOK_TOKEN`: két külön véletlen titok, legalább 32 karakterrel. Az admin felületen kizárólag az admin tokent add meg; csak memóriában marad, újratöltéskor elveszik. A webhook külön Bearer titkot kér. HTTPS használata szükséges éles környezetben.
 5. `GOOGLE_MAPS_API_KEY`: engedélyezett Google Routes API. A backend `DRIVE` módot használ. Részleges címegyezés, hiányzó placeId, hibás válasz vagy hiányzó kulcs esetén `blocked` állapot, nem 0 Ft és nem légvonal. A forrás és a lekérdezési idő az ajánlat kontaktpillanatképében és PDF-jében tárolódik. A fizetős Google API-fiók beállítását a felhasználó végzi.
 6. Az Árazás lapon add meg az árak nettó/bruttó jellegét, az ÁFA mértékét, a grill szabályát, érvényességi időt, kiállítói adatokat és feltételeket. Jóváhagyás előtt az ajánlat blokkolt marad. Mind a nyolc mező GHL azonosítója illeszthető; a note azonosító a konfiguráció `noteFieldId` mezője.
-7. `RESEND_API_KEY`, hitelesített `EMAIL_FROM`, majd `EMAIL_DOMAIN_VERIFIED=true`. A Resend szolgáltatónál a domain DNS-rekordjait hitelesíteni kell. A feladói domain GHL-ben való csatlakoztatása önmagában nem hitelesíti azt a Resendnél. Későbbi GHL-email adapterhez a GHL Conversations API attachment URL-t és megfelelő feltöltést kér; a jelenlegi adapter közvetlen PDF-mellékletet küld a Resend API-val.
+7. Az elsődleges adapter `EMAIL_PROVIDER=ghl` (ez az alapérték). A Kitchen Box GHL-fiókban csatlakoztasd és hitelesítsd a későbbi feladói domaint; állítsd be az onnan engedélyezett `EMAIL_FROM` címet, majd `EMAIL_DOMAIN_VERIFIED=true`. Add meg a publikált app HTTPS címét `PUBLIC_URL` néven és egy külön, legalább 32 karakteres `PDF_SIGNING_SECRET` titkot. A backend a GHL Conversations `/conversations/messages` API-t hívja `type=Email`, `contactId`, natív `emailTo`, `emailFrom` és attachment URL mezőkkel. Az attachment a már tárolt végleges PDF 15 percig érvényes HMAC-aláírt URL-je, nem admin token; megfelelő `application/pdf` és `attachment; filename=...pdf` fejléccel. A GHL a fájlt szerveroldalon tölti le. A tényleges GHL-lekérés időzítését és a címzett kézbesítését élesítéskor ellenőrizni kell. Lejárt, módosított vagy aláírás nélküli URL-lel nem érhető el PDF. **Resend nem kötelező:** csak külön döntésre `EMAIL_PROVIDER=resend` és `RESEND_API_KEY` mellett választható; ilyenkor a domain külön Resend-hitelesítése is szükséges.
 8. A küldés alapból tiltott: `SEND_EMAIL_ENABLED=false`. Külön élesítési lépésként állítható `true`-ra. Jelen munkamenetben külső levelet nem küldtünk.
 
 ## Native GHL form / workflow
@@ -66,21 +66,21 @@ Az admin „Új ajánlatkérés” űrlapja szintén szerveroldali upsertet vég
 - `sending` → `submitted`: a szolgáltató átvette a levelet. **Ez nem kézbesítési igazolás.**
 - `delivery_unknown`: hálózati vagy szolgáltatói bizonytalanság; nincs automatikus újraküldés. A `sending` állapotban megszakadt folyamatot is a szolgáltatónál kell ellenőrizni.
 
-A kontakt és árlistapillanatkép SHA-256 ujjlenyomata PostgreSQL unique kulccsal védi a duplikált eseményeket. A send claim atomikus státuszváltás, a Resend idempotency kulcs másodlagos védelem (a szolgáltató 24 óráig őrzi). Küldés előtt a szerver újraellenőrzi a kontaktot, a címzettet és a DND állapotot. Árváltoztatás új konfigurációverziót és új ajánlatot eredményez.
+A kontakt és árlistapillanatkép SHA-256 ujjlenyomata PostgreSQL unique kulccsal védi a duplikált eseményeket. A send claim atomikus státuszváltás. A GHL küldésnél nem feltételezünk nem dokumentált idempotenciafejlécet: bizonytalan eredménynél kötelező a szolgáltatói ellenőrzés, és nincs automatikus újraküldés. Az opcionális Resendnél az idempotency kulcs másodlagos védelem (24 óráig őrzi). Küldés előtt a szerver újraellenőrzi a kontaktot, a címzettet és a DND állapotot. Árváltoztatás új konfigurációverziót és új ajánlatot eredményez.
 
 A feldolgozás a webhook HTTP-kérésén belül megvárt, tartós állapotokkal. Nincs feltételezett, kérés után továbbfutó háttérszál. Éles hoston ellenőrizni kell a kérésidőkorlátot; nagy volumenhez külön üzenetsor/worker illeszthető a meglévő állapotkezeléshez. A listák jelenleg legfeljebb 100 kontaktot és 200 ajánlatot mutatnak.
 
 ## GitHub → cél Vibe projekt
 
-Cél: https://app.maxai.hu/v2/location/sQwGiqEHji64YPHGXdEU/vibe/projects/1792651416273008908 . A helyi repo induláskor üres volt, commit és remote nélkül. A kapcsolt GitHub connector jelenleg csak `MaxAI936/zero-base` írási jogát látja; ez másik, MotoSziget projekt, ezért oda nem történt feltöltés.
+Cél: https://app.maxai.hu/v2/location/sQwGiqEHji64YPHGXdEU/vibe/projects/1792651416273008908 . A helyi repo induláskor üres volt, commit és remote nélkül. A felhasználó által megadott MaxAI fiók pontos neve `MaxAI936`. Ebben létrehoztuk a privát https://github.com/MaxAI936/kitchenbox-arajanlat tárolót, és a teljes forrást a `main` branchre feltöltöttük. A GitHub connector installációja az összes repositoryra jogosult. A MotoSziget `zero-base` tárolója érintetlen maradt.
 
-A HighLevel hivatalos Git Sync funkciója a célprojekt **More → Git → GitHub** menüjében privát repót hoz létre. A felületen a vizsgálatkor ez a menü nem jelent meg. A funkció elérhetősége/jogosultsága, a `Manage Git & download code` engedély, illetve a MaxAI rollout ellenőrzendő. A GitHub Lead Connector app engedélyezését a felhasználó végzi. A szükséges következő adat a **Kitchenbox projekthez létrejött GitHub repository URL-je és szinkronizált branch neve**, és a connector számára annak hozzáférése.
+A HighLevel hivatalos Git Sync funkciója a célprojekt **More → Git → GitHub** menüjében kezelhető. A célprojektben a vizsgálatkor ez a menü nem jelent meg; a megjelenő projektbeállítások csak Project Settings és Domains oldalakat tartalmaztak. A funkció elérhetősége/jogosultsága, a `Manage Git & download code` engedély, illetve a MaxAI rollout ellenőrzendő. A GitHub Lead Connector app engedélyezését szükség esetén a felhasználó végzi. A következő konkrét lépés: a célprojektben elérhetővé tenni a **More → Git** funkciót, majd a `MaxAI936/kitchenbox-arajanlat` / `main` forrást a támogatott kapcsolási folyamatban összekötni. A Vibe-publikálás nem történt meg. A célprojekt Cloud panelje már bekapcsolt állapotot jelez, de a kód, migráció és szerveroldali titkok még nincsenek oda telepítve.
 
 Ezután az eredeti Vibe history megtartásával kell a változásokat a kapcsolt branchre felvinni, soha force push-sal. A Vibe exportált TanStack template-jének saját `vite.config.ts`/server host beállításait tartsd meg; a `src/lib`, `src/server`, route-ok, CSS, fontok és szükséges dependency-k kerüljenek át. A Git Sync React/Vite és TanStack Start projekteket támogat. A letöltött ZIP önmagában nem importmechanizmus.
 
 ## Ellenőrzés és források
 
-22 teszt: kalkuláció és kerekítés, hiányzó extrák, ismeretlen értékek, nettó/bruttó, routing-hibák, többszörös/párhuzamos események és küldések, megváltozott címzett, DND, konfigurálatlan backend, webhook hitelesítés, többoldalas ékezetes PDF. A külső API-kat a tesztek mockolják; valós GHL-írás, routing-lekérdezés és email küldés nem történt. `npm audit`: 0 ismert sérülékenység a jelen lockfile-ban. A forrás template elavult TanStack/Vite verzióit javított kompatibilis verziókra frissítettük.
+30 teszt: kalkuláció és kerekítés, hiányzó extrák, ismeretlen értékek, nettó/bruttó, routing-hibák, többszörös/párhuzamos események és küldések, megváltozott címzett, DND, konfigurálatlan backend, webhook hitelesítés, többoldalas ékezetes PDF, mockolt GHL Email kérés és aláírt attachment hitelesítés/lejárat/fájlnév. A külső API-kat a tesztek mockolják; valós GHL-írás, routing-lekérdezés és email küldés nem történt. `npm audit`: 0 ismert sérülékenység a jelen lockfile-ban. A forrás template elavult TanStack/Vite verzióit javított kompatibilis verziókra frissítettük.
 
 - https://help.gohighlevel.com/support/solutions/articles/155000009214-how-to-use-git-sync-in-ai-studio
 - https://help.gohighlevel.com/support/solutions/articles/155000008701
